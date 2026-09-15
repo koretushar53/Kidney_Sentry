@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+torch
+torchvision
+monai
+nibabel
+numpy
+scipy
+Pillow
+streamlit
