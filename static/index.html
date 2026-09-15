@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>KidneyScan AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🫘</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+/* ── TOKENS ── */
+:root{
+  --bg:#080c14;--surface:#0e1520;--surface2:#141e2e;--surface3:#1a2540;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --accent:#00c6ff;--accent2:#0072ff;
+  --good:#00e676;--warn:#ffab40;--danger:#ef5350;--purple:#a78bfa;
+  --stone:#ffab40;--cyst:#64b5f6;--normal:#00e676;--tumor:#ef5350;
+  --txt:#e8edf5;--txt-dim:#6b7a96;--txt-mid:#9aa5bc;
+  --r:16px;--r-sm:8px;--r-xs:6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(0,198,255,0.025)1px,transparent 1px),linear-gradient(90deg,rgba(0,198,255,0.025)1px,transparent 1px);
+  background-size:40px 40px;
+}
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px}
+
+/* ── AUTH OVERLAY ── */
+#auth-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(8,12,20,0.97);
+  display:flex;align-items:center;justify-content:center;
+}
+.auth-box{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:20px;padding:40px;width:100%;max-width:420px;
+}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo .logo-icon{margin:0 auto 12px}
+.auth-logo h2{
+  font-family:'DM Serif Display',serif;font-size:24px;
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.auth-logo p{font-size:13px;color:var(--txt-dim);margin-top:4px}
+.auth-tabs{
+  display:flex;border:1px solid var(--border);border-radius:var(--r-sm);
+  overflow:hidden;margin-bottom:22px;
+}
+.auth-tab{
+  flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;
+  cursor:pointer;background:transparent;color:var(--txt-dim);border:none;
+  font-family:inherit;transition:all .2s;
+}
+.auth-tab.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:11px;color:var(--txt-dim);margin-bottom:6px;letter-spacing:.6px;text-transform:uppercase}
+.auth-field input,.auth-field select{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-sm);color:var(--txt);font-family:inherit;
+  font-size:14px;padding:10px 14px;outline:none;transition:border-color .2s;
+}
+.auth-field input:focus,.auth-field select:focus{border-color:var(--accent)}
+.auth-field select option{background:var(--surface2)}
+.auth-btn{
+  width:100%;padding:13px;border:none;border-radius:var(--r-sm);
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-family:inherit;font-size:15px;font-weight:600;
+  cursor:pointer;margin-top:6px;transition:all .2s;
+}
+.auth-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,198,255,.3)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.auth-error{margin-top:12px;font-size:13px;color:var(--danger);text-align:center;display:none}
+
+/* ── LAYOUT ── */
+.app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 24px 80px}
+
+/* ── HEADER ── */
+header{
+  padding:36px 0 28px;display:flex;align-items:center;gap:16px;
+  border-bottom:1px solid var(--border);margin-bottom:0;
+}
+.logo-icon{
+  width:48px;height:48px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:14px;display:grid;place-items:center;font-size:22px;
+  flex-shrink:0;box-shadow:0 0 24px rgba(0,198,255,.25);
+}
+.brand h1{
+  font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.3px;
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.brand p{font-size:12px;color:var(--txt-dim);letter-spacing:.8px;text-transform:uppercase;margin-top:2px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.status-badge{
+  display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt-dim);
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--txt-dim);transition:background .3s}
+.status-dot.online{background:var(--good);box-shadow:0 0 6px var(--good)}
+#user-pill{
+  display:none;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;
+}
+#user-email{font-size:12px;color:var(--accent);font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill-btn{
+  background:none;border:1px solid var(--border);color:var(--txt-dim);
+  border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .2s;
+}
+.pill-btn:hover{border-color:var(--danger);color:var(--danger)}
+
+/* ── NAV TABS ── */
+.nav{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:32px;overflow-x:auto}
+.nav-tab{
+  padding:16px 22px;font-size:13px;font-weight:600;color:var(--txt-dim);
+  cursor:pointer;border:none;background:none;font-family:inherit;
+  border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;
+}
+.nav-tab:hover{color:var(--txt)}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── TAB PANELS ── */
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ── GRID ── */
+.two-col{display:grid;grid-template-columns:400px 1fr;gap:24px}
+@media(max-width:860px){.two-col{grid-template-columns:1fr}}
+
+/* ── PANEL ── */
+.panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:24px;
+}
+.panel-title{
+  font-size:11px;font-weight:600;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--txt-dim);margin-bottom:18px;
+}
+.section-gap{display:flex;flex-direction:column;gap:20px}
+
+/* ── FORM FIELDS ── */
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.6px}
+.field input,.field select{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-sm);color:var(--txt);font-family:inherit;
+  font-size:14px;padding:10px 14px;outline:none;transition:border-color .2s;width:100%;
+}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field select option{background:var(--surface2)}
+.field-note{font-size:11px;color:var(--txt-dim);margin-top:-4px}
+
+/* ── DROP ZONE ── */
+#drop-zone{
+  border:2px dashed rgba(0,198,255,.25);border-radius:var(--r);
+  padding:32px 20px;text-align:center;cursor:pointer;
+  transition:all .25s;background:rgba(0,198,255,.02);position:relative;
+}
+#drop-zone:hover,#drop-zone.drag-over{border-color:var(--accent);background:rgba(0,198,255,.06)}
+#drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:32px;margin-bottom:10px}
+#drop-zone h3{font-size:15px;font-weight:500;margin-bottom:4px}
+#drop-zone p{font-size:12px;color:var(--txt-dim)}
+.preview-wrap{
+  margin-top:16px;border-radius:var(--r-sm);overflow:hidden;
+  border:1px solid var(--border);background:var(--surface2);
+  aspect-ratio:1;display:none;
+}
+.preview-wrap img{width:100%;height:100%;object-fit:contain;display:block}
+#file-info{margin-top:10px;font-size:12px;color:var(--txt-dim);display:none}
+
+/* ── BUTTONS ── */
+.btn-primary{
+  width:100%;padding:13px;border:none;border-radius:var(--r-sm);
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,198,255,.3)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.spinner{
+  width:15px;height:15px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── ALERTS ── */
+.error-box{
+  padding:12px 16px;background:rgba(239,83,80,.1);border:1px solid rgba(239,83,80,.25);
+  border-radius:var(--r-sm);font-size:13px;color:var(--danger);display:none;margin-top:8px;
+}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.legend-chip{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid;letter-spacing:.5px}
+.chip-normal{border-color:var(--normal);color:var(--normal);background:rgba(0,230,118,.07)}
+.chip-cyst{border-color:var(--cyst);color:var(--cyst);background:rgba(100,181,246,.07)}
+.chip-stone{border-color:var(--stone);color:var(--stone);background:rgba(255,171,64,.07)}
+.chip-tumor{border-color:var(--tumor);color:var(--tumor);background:rgba(239,83,80,.07)}
+
+/* ── RESULTS ── */
+#result-panel{display:none;flex-direction:column;gap:20px}
+.diagnosis-card{
+  padding:22px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--surface2);
+  position:relative;overflow:hidden;
+}
+.diagnosis-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:var(--lc,var(--accent));
+}
+.diag-label{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt-dim);margin-bottom:8px}
+.diag-main{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.diag-name{font-family:'DM Serif Display',serif;font-size:38px}
+.diag-conf{font-family:'DM Mono',monospace;font-size:26px;color:var(--txt-dim)}
+.conf-bar-track{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.conf-bar-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.34,1.56,.64,1)}
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.prob-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px}
+.prob-item-name{font-size:11px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.prob-item-row{display:flex;align-items:center;gap:8px}
+.prob-item-bar{flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.prob-item-bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.prob-item-val{font-family:'DM Mono',monospace;font-size:13px;min-width:42px;text-align:right}
+.result-img-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--border);background:var(--surface2)}
+.result-img-wrap img{width:100%;display:block}
+.result-img-label{font-size:11px;color:var(--txt-dim);text-align:center;margin-top:8px;letter-spacing:.5px}
+
+/* ── DIET BOX ── */
+.diet-box{
+  background:rgba(0,198,255,.03);border:1px solid rgba(0,198,255,.12);
+  border-radius:var(--r);padding:20px 24px;display:none;
+}
+.diet-content{
+  font-size:13px;color:var(--txt);line-height:1.75;
+  white-space:pre-wrap;font-family:'DM Mono',monospace;
+}
+
+/* ── EMPTY STATE ── */
+.empty-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;gap:12px;padding:50px 20px;color:var(--txt-dim);
+}
+.big-icon{font-size:52px;opacity:.3}
+.empty-state h3{font-size:18px;font-weight:500;color:var(--txt);opacity:.4}
+.empty-state p{font-size:13px;opacity:.4;line-height:1.6}
+
+/* ── HISTORY TAB ── */
+.history-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;
+}
+.history-header h2{font-size:18px;font-weight:600}
+.refresh-btn{
+  background:var(--surface2);border:1px solid var(--border);color:var(--txt-dim);
+  border-radius:var(--r-sm);padding:8px 16px;font-size:13px;cursor:pointer;
+  font-family:inherit;transition:all .2s;
+}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── PROGRESS CARD ── */
+.progress-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:24px;margin-bottom:24px;
+}
+.progress-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.progress-status{
+  font-family:'DM Serif Display',serif;font-size:22px;
+}
+.progress-status.improving{color:var(--good)}
+.progress-status.stable{color:var(--accent)}
+.progress-status.worsening{color:var(--danger)}
+.progress-status.none{color:var(--txt-dim)}
+.progress-stats{display:flex;gap:20px;flex-wrap:wrap}
+.stat-pill{
+  display:flex;flex-direction:column;align-items:center;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:10px 16px;min-width:80px;
+}
+.stat-pill .stat-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:600}
+.stat-pill .stat-label{font-size:10px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.progress-path{
+  font-size:13px;color:var(--txt-mid);font-family:'DM Mono',monospace;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:10px 14px;
+}
+.disease-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.disease-chip{
+  font-size:12px;padding:4px 12px;border-radius:20px;border:1px solid;
+  font-weight:600;
+}
+
+/* ── PATIENT PROFILE CARD ── */
+.profile-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px 24px;margin-bottom:24px;
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+}
+.profile-avatar{
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  display:grid;place-items:center;font-size:22px;flex-shrink:0;
+}
+.profile-info{flex:1}
+.profile-name{font-size:18px;font-weight:600;margin-bottom:4px}
+.profile-meta{font-size:12px;color:var(--txt-dim);display:flex;gap:14px;flex-wrap:wrap}
+.profile-meta span{display:flex;align-items:center;gap:4px}
+
+/* ── HISTORY RECORDS ── */
+.history-list{display:flex;flex-direction:column;gap:12px}
+.history-record{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:18px 20px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.history-record:hover{border-color:var(--border2)}
+.rec-badge{
+  width:44px;height:44px;border-radius:10px;display:grid;place-items:center;
+  font-size:18px;flex-shrink:0;
+}
+.rec-badge.Normal{background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.25)}
+.rec-badge.Cyst  {background:rgba(100,181,246,.12);border:1px solid rgba(100,181,246,.25)}
+.rec-badge.Stone {background:rgba(255,171,64,.12);border:1px solid rgba(255,171,64,.25)}
+.rec-badge.Tumor {background:rgba(239,83,80,.12);border:1px solid rgba(239,83,80,.25)}
+.rec-label{font-size:16px;font-weight:600;flex:1}
+.rec-label.Normal{color:var(--normal)}
+.rec-label.Cyst  {color:var(--cyst)}
+.rec-label.Stone {color:var(--stone)}
+.rec-label.Tumor {color:var(--tumor)}
+.rec-conf{font-family:'DM Mono',monospace;font-size:13px;color:var(--txt-dim)}
+.rec-time{font-size:11px;color:var(--txt-dim);margin-left:auto}
+.rec-diet-toggle{
+  background:none;border:1px solid var(--border);color:var(--txt-dim);
+  border-radius:var(--r-xs);padding:4px 10px;font-size:11px;cursor:pointer;
+  font-family:inherit;transition:all .2s;
+}
+.rec-diet-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.rec-diet{
+  width:100%;display:none;background:var(--surface2);border-radius:var(--r-sm);
+  padding:14px;font-size:12px;font-family:'DM Mono',monospace;
+  color:var(--txt-mid);line-height:1.7;white-space:pre-wrap;margin-top:4px;
+}
+
+footer{
+  text-align:center;color:var(--txt-dim);font-size:11px;
+  margin-top:56px;padding-top:24px;border-top:1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="logo-icon">🫘</div>
+      <h2>KidneyScan AI</h2>
+      <p>Sign in to access the diagnostic platform</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+    </div>
+
+    <div class="auth-field">
+      <label>Email Address</label>
+      <input type="email" id="auth-email" placeholder="doctor@hospital.com"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="auth-pass" placeholder="••••••••"/>
+    </div>
+    <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Sign In</button>
+    <div class="auth-error" id="auth-err"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ MAIN APP -->
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-icon">🫘</div>
+    <div class="brand">
+      <h1>KidneyScan AI</h1>
+      <p>ResNet18 · Grad-CAM++ · Patient Management</p>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecting…</span>
+      </div>
+      <div id="user-pill">
+        <span id="user-email"></span>
+        <button class="pill-btn" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAV -->
+  <div class="nav">
+    <button class="nav-tab active" onclick="showTab('scan')">🔬 New Scan</button>
+    <button class="nav-tab" onclick="showTab('history')">📋 History & Progress</button>
+  </div>
+
+  <!-- ══ TAB: SCAN ══════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="tab-scan">
+    <div class="two-col">
+
+      <!-- LEFT: UPLOAD + PATIENT FORM -->
+      <div class="section-gap">
+
+        <!-- Patient Info -->
+        <div class="panel">
+          <p class="panel-title">Patient Information</p>
+          <div class="section-gap">
+            <div class="field">
+              <label>Full Name <span style="color:var(--txt-dim)">(optional)</span></label>
+              <input type="text" id="p-name" placeholder="e.g. Arjun Sharma"/>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Age <span style="color:var(--danger)">*</span></label>
+                <input type="number" id="p-age" placeholder="e.g. 45" min="1" max="120"/>
+              </div>
+              <div class="field">
+                <label>Mobile <span style="color:var(--danger)">*</span></label>
+                <input type="tel" id="p-mobile" placeholder="e.g. 9876543210"/>
+              </div>
+            </div>
+            <div class="field">
+              <label>Diabetic</label>
+              <select id="p-diabetic">
+                <option value="Unknown">Prefer not to say</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upload -->
+        <div class="panel">
+          <p class="panel-title">CT Image Upload</p>
+          <div id="drop-zone">
+            <input type="file" id="file-input" accept="image/jpeg,image/png,image/jpg"/>
+            <div class="upload-icon">🔬</div>
+            <h3>Drop CT scan here</h3>
+            <p>or click to browse — JPEG / PNG, max 20 MB</p>
+          </div>
+          <div id="file-info"></div>
+          <div class="preview-wrap" id="preview-wrap">
+            <img id="preview-img" src="" alt="Preview"/>
+          </div>
+          <button class="btn-primary" id="analyze-btn" style="margin-top:16px;display:none">
+            <div class="spinner" id="spinner"></div>
+            <span id="btn-label">Analyze Image</span>
+          </button>
+          <div class="error-box" id="error-box"></div>
+          <div class="legend">
+            <span class="legend-chip chip-normal">Normal</span>
+            <span class="legend-chip chip-cyst">Cyst</span>
+            <span class="legend-chip chip-stone">Stone</span>
+            <span class="legend-chip chip-tumor">Tumor</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: RESULTS -->
+      <div class="panel" style="display:flex;flex-direction:column;gap:0">
+        <p class="panel-title">Analysis Results</p>
+
+        <div class="empty-state" id="empty-state">
+          <div class="big-icon">⚕️</div>
+          <h3>No Analysis Yet</h3>
+          <p>Fill in patient info, upload a CT scan,<br>and click Analyze.</p>
+        </div>
+
+        <div id="result-panel">
+
+          <!-- Diagnosis -->
+          <div class="diagnosis-card" id="diag-card">
+            <div class="diag-label">Diagnosis</div>
+            <div class="diag-main">
+              <div class="diag-name" id="diag-name">—</div>
+              <div class="diag-conf" id="diag-conf">—</div>
+            </div>
+            <div class="conf-bar-track">
+              <div class="conf-bar-fill" id="conf-bar" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Probabilities -->
+          <div>
+            <p class="panel-title" style="margin-bottom:12px">Class Probabilities</p>
+            <div class="prob-grid" id="prob-grid"></div>
+          </div>
+
+          <!-- Grad-CAM image -->
+          <div>
+            <p class="panel-title" style="margin-bottom:12px">Grad-CAM++ Localisation</p>
+            <div class="result-img-wrap">
+              <img id="result-img" src="" alt="Result"/>
+            </div>
+            <p class="result-img-label">Red box = anomaly region detected by Grad-CAM++</p>
+          </div>
+
+          <!-- Diet -->
+          <div class="diet-box" id="diet-box">
+            <p class="panel-title" style="margin-bottom:12px">🥗 Diet & Lifestyle Recommendation</p>
+            <div class="diet-content" id="diet-content"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: HISTORY ═══════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-history">
+    <div class="history-header">
+      <h2>Patient History & Progress</h2>
+      <button class="refresh-btn" onclick="loadHistory()">⟳ Refresh</button>
+    </div>
+
+    <div id="history-loading" style="text-align:center;padding:60px;color:var(--txt-dim)">
+      Loading history…
+    </div>
+
+    <div id="history-content" style="display:none">
+
+      <!-- Profile card -->
+      <div class="profile-card" id="profile-card"></div>
+
+      <!-- Progress card -->
+      <div class="progress-card" id="progress-card"></div>
+
+      <!-- Records -->
+      <p class="panel-title" style="margin-bottom:14px">Scan Records</p>
+      <div class="history-list" id="history-list"></div>
+
+    </div>
+
+    <div id="history-empty" style="display:none">
+      <div class="empty-state">
+        <div class="big-icon">📋</div>
+        <h3>No Records Yet</h3>
+        <p>Your scan history will appear here<br>after your first analysis.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>KidneyScan AI · ResNet18 Fine-tuned · CT-KIDNEY-DATASET · For research / demonstration only</footer>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// FIREBASE CONFIG — replace with your actual values
+// ══════════════════════════════════════════════════════════════════════
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAeR3hCK3cENO5yeIjkXh0sr5TqjY8IJMg",
+  authDomain: "kidneytumour.firebaseapp.com",
+  projectId: "kidneytumour",
+  storageBucket: "kidneytumour.firebasestorage.app",
+  messagingSenderId: "843021712950",
+  appId: "1:843021712950:web:8cb98b1ec18aeac8a3e297",
+  measurementId: "G-4JJL38YS5M"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+const API = '';
+let idToken = null;
+let authTab = 'login';
+
+const CLASS_COLORS = {Normal:'#00e676',Cyst:'#64b5f6',Stone:'#ffab40',Tumor:'#ef5350'};
+const CLASS_ICONS  = {Normal:'🟢',Cyst:'🔵',Stone:'🟡',Tumor:'🔴'};
+
+// ── Auth state ───────────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    idToken = await user.getIdToken();
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('user-pill').style.display    = 'flex';
+    document.getElementById('user-email').textContent     = user.email;
+    checkHealth();
+  } else {
+    idToken = null;
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('user-pill').style.display    = 'none';
+  }
+});
+
+function switchAuthTab(tab) {
+  authTab = tab;
+  document.querySelectorAll('.auth-tab').forEach((el,i) =>
+    el.classList.toggle('active', (i===0 && tab==='login')||(i===1 && tab==='register')));
+  document.getElementById('auth-btn').textContent = tab==='login' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-err').style.display = 'none';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const errEl = document.getElementById('auth-err');
+  const btn   = document.getElementById('auth-btn');
+  if (!email||!pass){ errEl.textContent='Please enter email and password.'; errEl.style.display='block'; return; }
+  btn.disabled = true; errEl.style.display='none';
+  try {
+    if (authTab==='login') await auth.signInWithEmailAndPassword(email, pass);
+    else                   await auth.createUserWithEmailAndPassword(email, pass);
+  } catch(e) {
+    errEl.textContent = friendlyErr(e.code); errEl.style.display='block';
+  } finally { btn.disabled = false; }
+}
+function friendlyErr(code) {
+  return ({
+    'auth/user-not-found':'No account with this email.',
+    'auth/wrong-password':'Incorrect password.',
+    'auth/email-already-in-use':'Email already registered — sign in.',
+    'auth/weak-password':'Password must be at least 6 characters.',
+    'auth/invalid-email':'Invalid email address.',
+    'auth/too-many-requests':'Too many attempts. Please wait.',
+    'auth/invalid-credential':'Invalid email or password.',
+  })[code] || 'Authentication failed. Please try again.';
+}
+async function logout() { await auth.signOut(); }
+
+['auth-email','auth-pass'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') handleAuth(); }));
+
+// ── Nav tabs ─────────────────────────────────────────────────────────
+function showTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  event.target.classList.add('active');
+  if (tab==='history') loadHistory();
+}
+
+// ── Health check ─────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`);
+    if (r.ok) {
+      document.getElementById('status-dot').classList.add('online');
+      document.getElementById('status-text').textContent = 'Model Online';
+    } else {
+      document.getElementById('status-text').textContent = 'Model Error';
+    }
+  } catch { document.getElementById('status-text').textContent = 'Offline'; }
+}
+
+// ── File handling ─────────────────────────────────────────────────────
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const previewWrap = document.getElementById('preview-wrap');
+const previewImg  = document.getElementById('preview-img');
+const fileInfo    = document.getElementById('file-info');
+const analyzeBtn  = document.getElementById('analyze-btn');
+let selectedFile  = null;
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) { showError('Please upload a JPEG or PNG image.'); return; }
+  selectedFile = file;
+  previewImg.src = URL.createObjectURL(file);
+  previewWrap.style.display = 'block';
+  fileInfo.textContent = `${file.name}  ·  ${(file.size/1024).toFixed(1)} KB`;
+  fileInfo.style.display = 'block';
+  analyzeBtn.style.display = 'flex';
+  hideError();
+}
+
+// ── Analyze ───────────────────────────────────────────────────────────
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  // Validate patient form
+  const age    = document.getElementById('p-age').value.trim();
+  const mobile = document.getElementById('p-mobile').value.trim();
+  if (!age)    { showError('Age is required.'); return; }
+  if (!mobile) { showError('Mobile number is required.'); return; }
+
+  if (!idToken) { showError('Please sign in first.'); return; }
+
+  setLoading(true); hideError();
+
+  try {
+    // Refresh token
+    const user = auth.currentUser;
+    if (user) idToken = await user.getIdToken(true);
+
+    const patient = JSON.stringify({
+      name:     document.getElementById('p-name').value.trim() || null,
+      age:      parseInt(age),
+      mobile:   mobile,
+      diabetic: document.getElementById('p-diabetic').value,
+    });
+
+    const form = new FormData();
+    form.append('file',    selectedFile);
+    form.append('patient', patient);
+
+    const res  = await fetch(`${API}/predict`, {
+      method:'POST',
+      headers:{'Authorization':`Bearer ${idToken}`},
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Server error');
+    renderResult(data);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+// ── Render result ─────────────────────────────────────────────────────
+function renderResult(data) {
+  const color = CLASS_COLORS[data.label] || '#00c6ff';
+  const card  = document.getElementById('diag-card');
+  card.style.setProperty('--lc', color);
+  document.getElementById('diag-name').textContent = data.label;
+  document.getElementById('diag-name').style.color = color;
+  document.getElementById('diag-conf').textContent = `${(data.confidence*100).toFixed(1)}%`;
+  document.getElementById('conf-bar').style.background = color;
+  document.getElementById('conf-bar').style.width = `${data.confidence*100}%`;
+
+  const grid = document.getElementById('prob-grid');
+  grid.innerHTML = '';
+  for (const [cls, prob] of Object.entries(data.all_probs)) {
+    const c = CLASS_COLORS[cls]||'#fff';
+    const pct = (prob*100).toFixed(1);
+    grid.innerHTML += `
+      <div class="prob-item">
+        <div class="prob-item-name">${cls}</div>
+        <div class="prob-item-row">
+          <div class="prob-item-bar"><div class="prob-item-bar-fill" style="width:${pct}%;background:${c}"></div></div>
+          <div class="prob-item-val">${pct}%</div>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('result-img').src = `data:image/png;base64,${data.result_image}`;
+
+  if (data.diet_recommendation) {
+    document.getElementById('diet-content').textContent = data.diet_recommendation;
+    document.getElementById('diet-box').style.display = 'block';
+  }
+
+  document.getElementById('empty-state').style.display  = 'none';
+  document.getElementById('result-panel').style.display = 'flex';
+}
+
+// ── History & Progress ────────────────────────────────────────────────
+async function loadHistory() {
+  if (!idToken) return;
+  document.getElementById('history-loading').style.display  = 'block';
+  document.getElementById('history-content').style.display  = 'none';
+  document.getElementById('history-empty').style.display    = 'none';
+
+  try {
+    const user = auth.currentUser;
+    if (user) idToken = await user.getIdToken(true);
+
+    const res  = await fetch(`${API}/patient/history`, {
+      headers:{'Authorization':`Bearer ${idToken}`}
+    });
+    if (!res.ok) throw new Error('Failed to load history');
+    const data = await res.json();
+
+    document.getElementById('history-loading').style.display = 'none';
+
+    if (!data.history || data.history.length === 0) {
+      document.getElementById('history-empty').style.display = 'block';
+      return;
+    }
+
+    renderProfile(data.profile);
+    renderProgress(data.progress);
+    renderHistoryList(data.history);
+    document.getElementById('history-content').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('history-loading').textContent = '⚠ ' + e.message;
+  }
+}
+
+function renderProfile(p) {
+  if (!p || !p.mobile) return;
+  const name = p.name || 'Patient';
+  const initial = name.charAt(0).toUpperCase();
+  document.getElementById('profile-card').innerHTML = `
+    <div class="profile-avatar">${initial}</div>
+    <div class="profile-info">
+      <div class="profile-name">${name}</div>
+      <div class="profile-meta">
+        <span>🎂 Age ${p.age||'—'}</span>
+        <span>📱 ${p.mobile||'—'}</span>
+        <span>💊 Diabetic: ${p.diabetic||'Unknown'}</span>
+        <span>📧 ${p.email||''}</span>
+      </div>
+    </div>`;
+}
+
+function renderProgress(prog) {
+  if (!prog) return;
+  const trendClass = prog.trend || 'none';
+  const counts = prog.disease_counts || {};
+
+  const diseaseHTML = Object.entries(counts).map(([cls, cnt]) => {
+    const c = CLASS_COLORS[cls]||'#fff';
+    return `<span class="disease-chip" style="color:${c};border-color:${c}40;background:${c}12">${CLASS_ICONS[cls]||'●'} ${cls}: ${cnt}</span>`;
+  }).join('');
+
+  document.getElementById('progress-card').innerHTML = `
+    <div class="panel-title" style="margin-bottom:16px">Progress Tracking</div>
+    <div class="progress-top">
+      <div>
+        <div style="font-size:11px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Current Status</div>
+        <div class="progress-status ${trendClass}">${prog.status}</div>
+      </div>
+      <div class="progress-stats">
+        <div class="stat-pill">
+          <div class="stat-val">${prog.total_scans||0}</div>
+          <div class="stat-label">Total Scans</div>
+        </div>
+        ${Object.entries(counts).map(([cls,cnt])=>`
+          <div class="stat-pill">
+            <div class="stat-val" style="color:${CLASS_COLORS[cls]||'#fff'}">${cnt}</div>
+            <div class="stat-label">${cls}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    ${prog.summary ? `<div class="progress-path">${prog.summary}</div>` : ''}
+    ${diseaseHTML ? `<div class="disease-chips">${diseaseHTML}</div>` : ''}
+  `;
+}
+
+function renderHistoryList(records) {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  records.forEach((rec, idx) => {
+    const color = CLASS_COLORS[rec.prediction]||'#fff';
+    const icon  = CLASS_ICONS[rec.prediction]||'●';
+    const ts    = rec.timestamp ? new Date(rec.timestamp).toLocaleString() : '—';
+    const dietId = `diet-${idx}`;
+    list.innerHTML += `
+      <div class="history-record">
+        <div class="rec-badge ${rec.prediction}">${icon}</div>
+        <div>
+          <div class="rec-label ${rec.prediction}">${rec.prediction}</div>
+          <div class="rec-conf">${((rec.confidence||0)*100).toFixed(1)}% confidence</div>
+        </div>
+        <div class="rec-time">${ts}</div>
+        ${rec.diet ? `<button class="rec-diet-toggle" onclick="toggleDiet('${dietId}',this)">🥗 Diet</button>` : ''}
+        ${rec.diet ? `<div class="rec-diet" id="${dietId}">${rec.diet}</div>` : ''}
+      </div>`;
+  });
+}
+
+function toggleDiet(id, btn) {
+  const el = document.getElementById(id);
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  btn.textContent  = open ? '🥗 Diet' : '✕ Close';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function setLoading(on) {
+  analyzeBtn.disabled = on;
+  document.getElementById('spinner').style.display = on ? 'block' : 'none';
+  document.getElementById('btn-label').textContent = on ? 'Analysing…' : 'Analyze Image';
+}
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '⚠ '+msg; el.style.display='block';
+}
+function hideError() { document.getElementById('error-box').style.display='none'; }
+</script>
+</body>
+</html>

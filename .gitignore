@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python
 __pycache__/
 *.py[cod]
@@ -49,3 +50,10 @@ results/
 # *.pth
 # *.pt
 # *.onnx
+=======
+venv/
+__pycache__/
+*.pyc
+firebase_service_account.json
+.env
+>>>>>>> b01f96785d348604e61c39ff410e26a5d0477b0b
