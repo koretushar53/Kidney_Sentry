@@ -7,4 +7,5 @@ nibabel
 numpy
 scipy
 Pillow
+gunicorn
 streamlit
