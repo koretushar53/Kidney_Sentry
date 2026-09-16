@@ -9,3 +9,7 @@ scipy
 Pillow
 gunicorn
 streamlit
+firebase-admin
+requests
+reportlab
+pypdf
