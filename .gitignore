@@ -53,6 +53,7 @@ results/
 =======
 venv/
 __pycache__/
+.streamlit/
 *.pyc
 firebase_service_account.json
 .env
